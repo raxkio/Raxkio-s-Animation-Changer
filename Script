@@ -1,0 +1,39 @@
+local animations = loadstring(game:HttpGet("https://your-server.com/animations.lua"))()
+
+local function setAnimation(player, animationName)
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        for action, animationId in pairs(animations[animationName]) do
+            local anim = Instance.new("Animation")
+            anim.AnimationId = animationId
+            humanoid:LoadAnimation(anim)
+        end
+    end
+end
+
+local function savePermanentAnimation(player, animationName)
+    local folder = Instance.new("Folder")
+    folder.Name = "AnimationSettings"
+    folder.Parent = game.Workspace
+    local settings = Instance.new("StringValue")
+    settings.Name = "Animation"
+    settings.Value = animationName
+    settings.Parent = folder
+
+    player.CharacterAdded:Connect(function(char)
+        setAnimation(player, animationName)
+    end)
+end
+
+game.Players.PlayerAdded:Connect(function(player)
+    player.Chatted:Connect(function(message)
+        local args = message:split(" ")
+        if args[1] == "/e" then
+            if args[2] == "animation" and animations[args[3]] then
+                setAnimation(player, args[3])
+            elseif args[2] == "animationperm" and animations[args[3]] then
+                savePermanentAnimation(player, args[3])
+            end
+        end
+    end)
+end)
