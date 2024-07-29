@@ -1,57 +1,82 @@
-local animations = loadstring(game:HttpGet("https://raw.githubusercontent.com/raxkio/Raxkios-Animation-Changer/main/Animations"))()
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 
-local function setAnimation(player, animationName)
-    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        for action, animationId in pairs(animations[animationName]) do
-            local anim = Instance.new("Animation")
-            anim.AnimationId = animationId
-            humanoid:LoadAnimation(anim)
+-- Load commands
+local commandsUrl = "https://raw.githubusercontent.com/raxkio/Raxkios-Animation-Changer/main/Commands"
+local commands = HttpService:JSONDecode(game:HttpGet(commandsUrl))
+
+-- Load animations
+local animationsUrl = "https://raw.githubusercontent.com/raxkio/Raxkios-Animation-Changer/main/Animations"
+local animationLibrary = loadstring(game:HttpGet(animationsUrl))()
+
+local function applyAnimation(player, animationName)
+    local animations = animationLibrary[animationName]
+    if animations then
+        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            for state, id in pairs(animations) do
+                local animation = Instance.new("Animation")
+                animation.AnimationId = id
+                humanoid:LoadAnimation(animation):Play()
+            end
         end
     end
 end
 
-local function savePermanentAnimation(player, animationName)
-    if not game.Workspace:FindFirstChild("AnimationSettings") then
-        local folder = Instance.new("Folder")
-        folder.Name = "AnimationSettings"
-        folder.Parent = game.Workspace
-    end
-
-    local settings = game.Workspace.AnimationSettings:FindFirstChild(player.Name)
-    if not settings then
-        settings = Instance.new("StringValue")
-        settings.Name = player.Name
-        settings.Parent = game.Workspace.AnimationSettings
-    end
-
-    settings.Value = animationName
-
-    player.CharacterAdded:Connect(function(char)
-        setAnimation(player, animationName)
-    end)
-end
-
-local function onPlayerChatted(player, message)
-    local args = message:split(" ")
-    if args[1] == "/e" then
-        if args[2] == "animation" and args[3] == "change" and animations[args[4]] then
-            setAnimation(player, args[4])
-        elseif args[2] == "animationperm" and args[3] == "change" and animations[args[4]] then
-            savePermanentAnimation(player, args[4])
-        end
-    end
-end
-
-game.Players.PlayerAdded:Connect(function(player)
+local function onPlayerAdded(player)
     player.Chatted:Connect(function(message)
-        onPlayerChatted(player, message)
-    end)
+        local args = message:split(" ")
+        local command = args[1]
+        local animationName = args[3]
 
-    player.CharacterAdded:Connect(function(char)
-        local settings = game.Workspace.AnimationSettings:FindFirstChild(player.Name)
-        if settings then
-            setAnimation(player, settings.Value)
+        if command == "/e" then
+            if args[2] == "animation" and animationName then
+                applyAnimation(player, animationName)
+            elseif args[2] == "animationperm" and animationName then
+                -- Save the animation to a folder in Workspace
+                local folder = workspace:FindFirstChild("AnimationSettings") or Instance.new("Folder", workspace)
+                folder.Name = "AnimationSettings"
+
+                local setting = folder:FindFirstChild(player.Name) or Instance.new("StringValue", folder)
+                setting.Name = player.Name
+                setting.Value = animationName
+
+                applyAnimation(player, animationName)
+            end
         end
     end)
+end
+
+local function onCharacterAdded(character)
+    local player = Players:GetPlayerFromCharacter(character)
+    if player then
+        local folder = workspace:FindFirstChild("AnimationSettings")
+        if folder then
+            local setting = folder:FindFirstChild(player.Name)
+            if setting then
+                applyAnimation(player, setting.Value)
+            end
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    onPlayerAdded(player)
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    local folder = workspace:FindFirstChild("AnimationSettings")
+    if folder then
+        local setting = folder:FindFirstChild(player.Name)
+        if setting then
+            setting:Destroy()
+        end
+    end
 end)
+
+Players.Player.CharacterAdded:Connect(onCharacterAdded)
