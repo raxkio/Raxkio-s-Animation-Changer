@@ -1,4 +1,4 @@
-local animations = loadstring(game:HttpGet("https://your-server.com/animations.lua"))()
+local animations = loadstring(game:HttpGet("https://raw.githubusercontent.com/raxkio/Raxkios-Animation-Changer/main/Animations"))()
 
 local function setAnimation(player, animationName)
     local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
@@ -12,28 +12,46 @@ local function setAnimation(player, animationName)
 end
 
 local function savePermanentAnimation(player, animationName)
-    local folder = Instance.new("Folder")
-    folder.Name = "AnimationSettings"
-    folder.Parent = game.Workspace
-    local settings = Instance.new("StringValue")
-    settings.Name = "Animation"
+    if not game.Workspace:FindFirstChild("AnimationSettings") then
+        local folder = Instance.new("Folder")
+        folder.Name = "AnimationSettings"
+        folder.Parent = game.Workspace
+    end
+
+    local settings = game.Workspace.AnimationSettings:FindFirstChild(player.Name)
+    if not settings then
+        settings = Instance.new("StringValue")
+        settings.Name = player.Name
+        settings.Parent = game.Workspace.AnimationSettings
+    end
+
     settings.Value = animationName
-    settings.Parent = folder
 
     player.CharacterAdded:Connect(function(char)
         setAnimation(player, animationName)
     end)
 end
 
+local function onPlayerChatted(player, message)
+    local args = message:split(" ")
+    if args[1] == "/e" then
+        if args[2] == "animation" and args[3] == "change" and animations[args[4]] then
+            setAnimation(player, args[4])
+        elseif args[2] == "animationperm" and args[3] == "change" and animations[args[4]] then
+            savePermanentAnimation(player, args[4])
+        end
+    end
+end
+
 game.Players.PlayerAdded:Connect(function(player)
     player.Chatted:Connect(function(message)
-        local args = message:split(" ")
-        if args[1] == "/e" then
-            if args[2] == "animation" and animations[args[3]] then
-                setAnimation(player, args[3])
-            elseif args[2] == "animationperm" and animations[args[3]] then
-                savePermanentAnimation(player, args[3])
-            end
+        onPlayerChatted(player, message)
+    end)
+
+    player.CharacterAdded:Connect(function(char)
+        local settings = game.Workspace.AnimationSettings:FindFirstChild(player.Name)
+        if settings then
+            setAnimation(player, settings.Value)
         end
     end)
 end)
